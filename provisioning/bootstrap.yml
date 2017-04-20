@@ -1,0 +1,34 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+  - name: ensure required packages are installed
+    yum:
+      pkg: "{{item}}"
+      state: latest
+    with_items:
+      - libaio
+      - bc
+      - flex
+      - unzip
+
+  - name: unzip the oracle rpm
+    command: /usr/bin/unzip -q /vagrant/oracle/oracle-xe-11.2.0-1.0.x86_64.rpm -d /vagrant/oracle creates=/vagrant/oracle/Disk1
+
+  - name: install oracle from rpm
+    shell: /bin/rpm -ivh /vagrant/oracle/Disk1/oracle-xe-11.2.0-1.0.x86_64.rpm creates=/u01
+
+  - name: configure oracle
+    shell: /etc/init.d/oracle-xe configure responseFile=/vagrant/oracle/xe.rsp
+    ignore_errors: true
+
+  - name: setup oracle environment
+    shell: /bin/echo 'source /u01/app/oracle/product/11.2.0/xe/bin/oracle_env.sh' >> /home/vagrant/.bash_profile
+
+  - name: stop iptables
+    shell: service iptables stop
+
+  - name: set oracle listener
+    become: false
+    shell: ORACLE_HOME=/u01/app/oracle/product/11.2.0/xe /u01/app/oracle/product/11.2.0/xe/bin/sqlplus system/changeit2@localhost < /vagrant/oracle/set_listener.sql
